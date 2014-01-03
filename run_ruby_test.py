@@ -46,9 +46,10 @@ class ShowInScratch:
 
   def append(self, content):
     self.view.set_read_only(False)
-    edit = self.view.begin_edit()
-    self.view.insert(edit, self.view.size(), content)
-    self.view.end_edit(edit)
+    # edit = self.view.begin_edit()
+    # self.view.insert(edit, self.view.size(), content)
+    self.view.run_command("edit", { "size" : self.view.size(), "content": content });
+    # self.view.end_edit(edit)
     self.view.set_read_only(True)
     self.view.set_viewport_position((self.view.size(), self.view.size()), True)
 
@@ -346,7 +347,7 @@ class BaseRubyTask(sublime_plugin.TextCommand):
 
 class RunSingleRubyTest(BaseRubyTask):
   def is_enabled(self): return 'run_test' in self.file_type().features()
-  def run(self, args):
+  def run(self, edit):
     self.load_config()
     self.save_all()
     file = self.file_type()
@@ -356,7 +357,7 @@ class RunSingleRubyTest(BaseRubyTask):
 
 class RunAllRubyTest(BaseRubyTask):
   def is_enabled(self): return 'run_test' in self.file_type().features()
-  def run(self, args):
+  def run(self, edit):
     self.load_config()
     self.save_all()
     file = self.file_type(self.view.file_name())
@@ -374,13 +375,13 @@ class RunLastRubyTest(BaseRubyTask):
     s = sublime.load_settings("RubyTest.last-run")
     return (s.get("last_test_run"), s.get("last_test_working_dir"))
 
-  def run(self, args):
+  def run(self, edit):
     last_command, working_dir = self.load_last_run()
     self.run_shell_command(last_command, working_dir)
 
 class VerifyRubyFile(BaseRubyTask):
   def is_enabled(self): return 'verify_syntax' in self.file_type().features()
-  def run(self, args):
+  def run(self, edit):
     self.load_config()
     file = self.file_type()
     command = file.verify_syntax_command()
@@ -391,7 +392,7 @@ class VerifyRubyFile(BaseRubyTask):
 
 class SwitchBetweenCodeAndTest(BaseRubyTask):
   def is_enabled(self): return 'switch_to_test' in self.file_type().features()
-  def run(self, args, split_view):
+  def run(self, edit, split_view):
     self.load_config()
     possible_alternates = self.file_type().possible_alternate_files()
     alternates = self.project_files(lambda file: file in possible_alternates)
@@ -439,12 +440,12 @@ class RubyRailsGenerate(BaseRubyTask):
     self.run_shell_command(command, self.window().folders()[0])
 
 class ShowTestPanel(BaseRubyTask):
-  def run(self, args):
+  def run(self, edit):
     self.window().run_command("show_panel", {"panel": "output.exec"})
 
 class RubyExtractVariable(BaseRubyTask):
   def is_enabled(self): return 'extract_variable' in self.file_type().features()
-  def run(self, args):
+  def run(self, edit):
     for selection in self.view.sel():
       self.window().show_input_panel("Variable Name: ", '', lambda name: self.generate(selection, name), None, None)
 
@@ -580,3 +581,7 @@ class GenerateNewFile(GenerateTestFile):
 
   def suggest_file_name(self, path):
     return ""
+
+class EditCommand(sublime_plugin.TextCommand):
+  def run(self, edit, size, content):
+    self.view.insert(edit, size, content)
