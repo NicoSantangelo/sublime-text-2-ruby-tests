@@ -46,10 +46,14 @@ class ShowInScratch:
 
   def append(self, content):
     self.view.set_read_only(False)
-    # edit = self.view.begin_edit()
-    # self.view.insert(edit, self.view.size(), content)
-    self.view.run_command("edit", { "size" : self.view.size(), "content": content });
-    # self.view.end_edit(edit)
+    try:
+      # ST2
+      edit = self.view.begin_edit()
+      self.view.insert(edit, self.view.size(), content)
+      self.view.end_edit(edit)
+    except TypeError:
+      # ST3
+      self.view.run_command("view_insert", { "size" : self.view.size(), "content": content });
     self.view.set_read_only(True)
     self.view.set_viewport_position((self.view.size(), self.view.size()), True)
 
@@ -453,13 +457,20 @@ class RubyExtractVariable(BaseRubyTask):
     extracted = self.view.substr(selection)
     line = self.view.line(selection)
     white_space = re.match("\s*", self.view.substr(line)).group()
-    edit = self.view.begin_edit()
+    content = white_space + name + " = " + extracted + "\n"
     try:
-      self.view.replace(edit, selection, name)
-      self.view.insert(edit, line.begin(), white_space + name + " = " + extracted + "\n")
-    finally:
-      self.view.end_edit(edit)
-
+      # ST2
+      edit = self.view.begin_edit()
+      try:
+        self.view.replace(edit, selection, name)
+        self.view.insert(edit, line.begin(), content)
+      finally:
+        self.view.end_edit(edit)
+    except TypeError:
+      # ST3
+      self.view.run_command("view_replace", { "begin" : selection.begin(), "end": selection.end(), "name": name });
+      self.view.run_command("view_insert",  { "size" : line.begin(), "content": content });
+    
 class GenerateTestFile:
   relative_paths = []
   full_torelative_paths = {}
@@ -582,6 +593,10 @@ class GenerateNewFile(GenerateTestFile):
   def suggest_file_name(self, path):
     return ""
 
-class EditCommand(sublime_plugin.TextCommand):
+class ViewInsertCommand(sublime_plugin.TextCommand):
   def run(self, edit, size, content):
     self.view.insert(edit, size, content)
+
+class ViewReplaceCommand(sublime_plugin.TextCommand):
+  def run(self, edit, begin, end, name):
+    self.view.replace(edit, sublime.Region(begin, end), name)
